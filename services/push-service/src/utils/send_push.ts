@@ -49,12 +49,12 @@ async function send_push_notification(payload: PushNotificationPayload): Promise
       data: payload.data || {},
       android: {
         priority: payload.priority || 'normal',
-        ttl: payload.ttl ? payload.ttl * 1000 : undefined, // Convert to milliseconds
+        ttl: payload.ttl ? `${payload.ttl}s` : undefined, // Convert to seconds duration format
         notification: {
           imageUrl: payload.image,
           clickAction: payload.link,
         },
-      },
+      } as admin.messaging.AndroidConfig,
       apns: {
         payload: {
           aps: {
@@ -73,7 +73,7 @@ async function send_push_notification(payload: PushNotificationPayload): Promise
           link: payload.link,
         },
         headers: {
-          image: payload.image,
+          ...(payload.image && { image: payload.image }),
         },
       },
     };
@@ -113,7 +113,7 @@ async function validate_device_token(token: string): Promise<boolean> {
         title: 'Test',
         body: 'Test',
       },
-    }, { dryRun: true });
+    }, true);
     
     return true;
   } catch (error) {

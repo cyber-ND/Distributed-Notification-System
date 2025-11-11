@@ -1,6 +1,18 @@
 import app from "./app.js";
 import { consume_queue } from "./queue/rabbitmq.js";
 import { send_push_notification } from "./utils/send_push.js";
+import amqp from "amqplib";
+
+async function connectRabbit() {
+  const connection = await amqp.connect(app.config.RABBITMQ_CONNECTION_URL);
+  const channel = await connection.createChannel();
+  console.log("✅ Connected to RabbitMQ");
+  return channel;
+}
+
+connectRabbit().catch((err) => {
+  console.error("❌ RabbitMQ connection failed:", err.message);
+});
 
 // register consul for dynamic service discovery
 async function registerService() {
@@ -69,7 +81,7 @@ const start = async () => {
     await consume_queue("push", async (payload) => {
       const result = await send_push_notification(payload);
       if (!result.success) {
-        throw new Error(result.error || 'Failed to send push notification');
+        throw new Error(result.error || "Failed to send push notification");
       }
     });
     console.log(`Push service listening on port ${app.config.PORT}`);
