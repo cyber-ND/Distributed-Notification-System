@@ -1,9 +1,12 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { ValidationPipe } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
+import {
+  FastifyAdapter,
+  NestFastifyApplication,
+} from '@nestjs/platform-fastify';
 import * as dotenv from 'dotenv';
 import { SwaggerGateway } from './swagger.gateway';
+import { AppModule } from './app.module';
 
 dotenv.config();
 
@@ -25,7 +28,7 @@ async function bootstrap() {
   );
 
   // optional CORS
-  await app.enableCors();
+  app.enableCors();
 
     // Setup Swagger UI
   const swaggerGateway = app.get(SwaggerGateway);
@@ -37,7 +40,7 @@ async function bootstrap() {
   console.log(`Swagger docs at http://localhost:${port}/swagger/api-docs`);
 }
 
-bootstrap().catch(err => {
+bootstrap().catch((err) => {
   console.error('Bootstrap error', err);
   process.exit(1);
 });

@@ -18,4 +18,3 @@ import { SwaggerGateway } from './swagger.gateway';
   exports: [RabbitMQProvider],
 })
 export class AppModule {}
-

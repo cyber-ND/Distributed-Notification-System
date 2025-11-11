@@ -37,13 +37,7 @@ export const consume_queue = async (
   const ch = await get_channel();
 
   // Main exchange
-  ch.assertExchange("notifications.direct", "direct", { durable: true });
-
-  // Dead letter exchange
-  ch.assertExchange("notifications.dlx", "direct", { durable: true });
-
-  // Create dead letter queue for failed messages - NO dead letter exchange here!
-  await ch.assertQueue(`${routingKey}.failed`, {
+  ch.assertExchange("notifications.direct", "direct", {
     durable: true,
     autoDelete: false,
   });
@@ -52,17 +46,18 @@ export const consume_queue = async (
   await ch.assertQueue(`${routingKey}.queue`, {
     durable: true,
     autoDelete: false,
-    deadLetterExchange: "notifications.dlx",
-    deadLetterRoutingKey: `${routingKey}.failed`,
+    deadLetterExchange: "notifications.direct",
+    deadLetterRoutingKey: "failed",
   });
 
-  // Bind DLQ to the exchange with a different routing key
-  await ch.bindQueue(
-    `${routingKey}.failed`,
-    "notifications.dlx",
-    `${routingKey}.failed`
-  );
+  // Create dead letter queue for failed messages
+  await ch.assertQueue(`${routingKey}.failed`, {
+    durable: true,
+    autoDelete: false,
+  });
 
+  // Bind exchange with queues
+  await ch.bindQueue(`${routingKey}.failed`, "notifications.direct", "failed");
   await ch.bindQueue(`${routingKey}.queue`, "notifications.direct", routingKey);
 
   ch.consume(`${routingKey}.queue`, async (msg: any) => {
@@ -91,9 +86,10 @@ export const consume_queue = async (
           html: "<p>something</p>",
         });
 
-        // todo: store result in redis
+        // todo: call gateway status update endpoint to mark notification as sent
         ch.ack(msg);
       } catch (error) {
+        // call gateway status update endpoint to mark notification as failed
         ch.nack(msg, false, false);
         console.log(
           `💀 Message sent to Dead Letter Queue: ${routingKey}.failed\n`

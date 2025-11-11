@@ -1,4 +1,4 @@
-export const envSchema = {
+export const env_schema = {
   type: "object",
   required: [
     "PORT",
@@ -16,4 +16,24 @@ export const envSchema = {
     CONSUL_PORT: { type: "number", default: 8500 },
     NODE_ENV: { type: "string", default: "development" },
   },
+};
+
+export const create_template_schema = {
+  type: "object",
+  required: ["name", "subject", "body"],
+  properties: {
+    name: { type: "string" },
+    subject: { type: "string" },
+    body: { type: "string" },
+  },
+};
+
+export const update_template_schema = {
+  type: "object",
+  properties: {
+    name: { type: "string" },
+    subject: { type: "string" },
+    body: { type: "string" },
+  },
+  additionalProperties: false,
 };

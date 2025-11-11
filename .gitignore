@@ -8,3 +8,13 @@ dist/
 
 # local test folders
 gateway-fastify/
+
+vendor/
+services/user-service/bootstrap/cache/*
+services/user-service/storage/framework/*
+services/user-service/storage/logs/*
+services/user-service/storage/*.log
+.env
+.phpunit.result.cache
+npm-debug.log
+yarn-error.log

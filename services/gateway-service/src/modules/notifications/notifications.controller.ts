@@ -1,52 +1,52 @@
 import {
-  Controller,
-  Post,
   Body,
-  Param,
+  Controller,
   Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Post,
 } from '@nestjs/common';
-import { NotificationsService } from './notifications.service';
-import { CreateNotificationDto } from './dto/notification.dto';
 import { UpdateNotificationStatusDto } from './dto/notification-status.dto';
+import { CreateNotificationDto } from './dto/notification.dto';
+import { NotificationsService } from './notifications.service';
 
 @Controller('notifications')
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
-  // Create / queue a notification (email | push)
-  @Post('/')
+  // Create queue notification (email | push)
+  @Post('/notifications')
   @HttpCode(HttpStatus.ACCEPTED)
   async createNotification(@Body() body: CreateNotificationDto) {
     const result = await this.notificationsService.handleNotification(body);
     return {
       success: true,
       data: result.data || null,
-      message: result.message || 'notification queued',
+      message: result.message,
       meta: result.meta || null,
     };
   }
 
-  // Receive status updates from downstream services (email/push)
-  @Post('/:notification_type/status')
+  // status updates from downstream services (email/push)
+  @Post('/:notification_preference/status')
   async updateStatus(
-    @Param('notification_type') notification_type: string,
+    @Param('notification_preference') notification_preference: string,
     @Body() body: UpdateNotificationStatusDto,
   ) {
     const result = await this.notificationsService.updateStatus(
-      notification_type,
+      notification_preference,
       body,
     );
     return {
       success: true,
       data: result.data || null,
-      message: result.message || `${notification_type} status updated`,
+      message: result.message || `${notification_preference} status updated`,
       meta: result.meta || null,
     };
   }
 
-  // Query status by request_id (notification_id)
+  // notification status by request_id
   @Get('/:request_id')
   async getStatus(@Param('request_id') request_id: string) {
     const result = await this.notificationsService.getStatus(request_id);
@@ -58,9 +58,13 @@ export class NotificationsController {
     };
   }
 
-  // Health check for notifications area
   @Get('/health')
   health() {
-    return { success: true, data: { status: 'ok' }, message: 'healthy', meta: null };
+    return {
+      success: true,
+      data: { status: 'ok' },
+      message: 'healthy',
+      meta: null,
+    };
   }
 }

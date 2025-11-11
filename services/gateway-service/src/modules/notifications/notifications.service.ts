@@ -1,10 +1,17 @@
-import { Injectable, Inject, BadRequestException, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
-import { lastValueFrom } from 'rxjs';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import Redis from 'ioredis';
-import { CreateNotificationDto, NotificationType } from './dto/notification.dto';
+import { lastValueFrom } from 'rxjs';
 import { UpdateNotificationStatusDto } from './dto/notification-status.dto';
-import { UsersService } from '../users/users.service';
+import {
+  CreateNotificationDto,
+  NotificationType,
+} from './dto/notification.dto';
 
 @Injectable()
 export class NotificationsService {
@@ -94,66 +101,97 @@ export class NotificationsService {
 
     if (!request_id) throw new BadRequestException('request_id is required');
 
-    const existing = await this.safeGet(`notification:${request_id}`);
-    if (existing) {
-      this.logger.warn(`Duplicate request detected: ${request_id}`);
-      throw new BadRequestException('Duplicate request_id detected');
-    }
-
+    // validate user
+    // todo: implement circuit breaker and consul dynamic service discovery
+    const userUrl = `${process.env.USER_SERVICE_URL}/api/v1/users/${user_id}`;
     let userRes;
     try {
       userRes = await this.usersService.forwardToUserService('GET', `/api/v1/users/${user_id}`);
     } catch (err) {
-      this.logger.error('User service request failed', err?.message || err);
+      this.logger.error(
+        'User service request failed',
+        err?.response?.data || err.message,
+      );
       throw new BadRequestException('Failed to fetch user');
     }
 
+    console.log(userRes);
     const user = userRes?.data?.data;
     if (!user) throw new BadRequestException('User not found');
 
-    const prefKey = notification_type === NotificationType.EMAIL ? 'email' : 'push';
+    // validate notification preference
+    const prefKey =
+      notification_type === NotificationType.EMAIL ? 'email' : 'push';
+
     if (!user.preferences || !user.preferences[prefKey]) {
-      throw new BadRequestException(`${notification_type} notifications disabled for user`);
+      return {
+        message: `${notification_type} notifications disabled by user`,
+        data: {
+          request_id: request_id,
+          notification_type: notification_type,
+          priority: priority,
+        },
+        meta: null,
+      };
     }
 
-    const templateUrl = `${process.env.TEMPLATE_SERVICE_URL}/api/v1/templates/${encodeURIComponent(template_code)}`;
-    let templateRes;
-    try {
-      templateRes = await lastValueFrom(this.http.get(templateUrl));
-    } catch (err) {
-      this.logger.error('Template service request failed', err?.response?.data || err.message);
-      throw new BadRequestException('Failed to fetch template');
+    // Idempotency key for uniqueness
+    const key = `notification:${request_id}`;
+
+    const existing = JSON.parse((await this.redis.get(key)) || '{}');
+
+    if (existing) {
+      if (existing.status === 'pending' || existing.status === 'delivered') {
+        return {
+          message: 'Notification already processed',
+          data: { request_id, notification_type, priority },
+          meta: null,
+        };
+      }
+
+      if (existing.status === 'failed') {
+        return {
+          message: 'Notification previously failed',
+          data: { request_id, notification_type, priority },
+          meta: null,
+        };
+      }
+    } else {
+      await this.redis.set(
+        key,
+        JSON.stringify({
+          status: 'pending',
+          timestamp: new Date().toISOString(),
+        }),
+        'EX',
+        60 * 60 * 24, // keep for 24 hours
+      );
     }
 
-    const template = templateRes?.data?.data;
-    if (!template) throw new BadRequestException('Template not found');
-
-    const message = {
-      request_id,
-      notification_type,
-      user_id,
-      user,
-      template_code,
-      template,
-      variables,
-      priority: Number(priority) || 0,
-      metadata: metadata || {},
-      created_at: new Date().toISOString(),
-    };
-
     try {
-      const routingKey = notification_type;
-      const payloadBuffer = Buffer.from(JSON.stringify(message));
-      await this.channel.publish(this.exchange, routingKey, payloadBuffer, {
-        persistent: true,
-        priority: Math.min(Math.max(Number(priority) || 0, 0), 9),
-      });
+      await this.channel.publish(
+        this.exchange,
+        notification_type,
+        Buffer.from(
+          JSON.stringify({
+            notification_type,
+            user_id,
+            template_code,
+            variables,
+            request_id,
+            priority,
+            metadata,
+          }),
+        ),
+        {
+          persistent: true,
+          priority,
+        },
+      );
     } catch (err) {
       this.logger.error('Failed to publish to queue', err?.message || err);
       throw new BadRequestException('Failed to queue notification');
     }
-
-    await this.safeSet(`notification:${request_id}`, { status: 'queued', created_at: new Date().toISOString() }, 60 * 60 * 24);
 
     return {
       message: `${notification_type} notification queued successfully`,
@@ -162,21 +200,30 @@ export class NotificationsService {
     };
   }
 
-  // Update status
-  async updateStatus(notification_type: string, body: UpdateNotificationStatusDto) {
+  // Called by downstream services to update status
+  async updateStatus(
+    notification_type: string,
+    body: UpdateNotificationStatusDto,
+  ) {
     const { notification_id, status, timestamp, error } = body;
 
-    if (!notification_id) throw new BadRequestException('notification_id required');
+    if (!notification_id)
+      throw new BadRequestException('notification_id required');
 
     const record = {
       status,
       error: error || null,
-      updated_at: timestamp || new Date().toISOString(),
-      source: notification_type,
+      timestamp: timestamp || new Date().toISOString(),
     };
 
-    await this.safeSet(`notification:${notification_id}`, record, 60 * 60 * 24 * 7);
-    await this.safeLpush(`notification_events:${notification_id}`, record);
+    await this.redis.set(key, JSON.stringify(record), 'EX', 60 * 60 * 24); // keep for 24 hours
+
+    // // Optionally: append to a list of status events for that notification
+    // await this.redis.lpush(
+    //   `notification_events:${notification_id}`,
+    //   JSON.stringify(record),
+    // );
+    // await this.redis.ltrim(`notification_events:${notification_id}`, 0, 100); // keep last 100
 
     return {
       message: `${notification_type} notification status updated`,
@@ -187,14 +234,31 @@ export class NotificationsService {
 
   // Get status
   async getStatus(request_id: string) {
-    const parsed = await this.safeGet(`notification:${request_id}`);
-    if (!parsed) return { message: 'not found', data: null, meta: null };
+    const key = `notification:${request_id}`;
+    const raw = await this.redis.get(key);
+    if (!raw) {
+      return { success: false, message: 'not found', data: null, meta: null };
+    }
+    const parsed = JSON.parse(raw);
+    // Also return recent events if present
+    // const eventsRaw = await this.redis.lrange(
+    //   `notification_events:${request_id}`,
+    //   0,
+    //   50,
+    // );
 
-    const eventsRaw = await this.redis.lrange(`notification_events:${request_id}`, 0, 50);
-    const events = eventsRaw.map(e => {
-      try { return JSON.parse(e); } catch { return e; }
-    });
+    // const events = eventsRaw.map((e) => {
+    //   try {
+    //     return JSON.parse(e);
+    //   } catch {
+    //     return e;
+    //   }
+    // });
 
-    return { message: 'ok', data: { request_id, status: parsed, events }, meta: null };
+    return {
+      message: 'ok',
+      data: { request_id, status: parsed },
+      meta: null,
+    };
   }
 }
