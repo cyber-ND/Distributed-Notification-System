@@ -75,6 +75,8 @@ services:
         condition: service_healthy
       email-service:
         condition: service_healthy
+      push-service:
+        condition: service_healthy
     networks:
       - dns-network
     restart: unless-stopped
@@ -119,6 +121,30 @@ services:
       - SERVICE_PORT=3002
     depends_on:
       mysql:
+        condition: service_healthy
+      consul:
+        condition: service_healthy
+    networks:
+      - dns-network
+    restart: unless-stopped
+
+  # Push Service
+  push-service:
+    build:
+      context: ./services/push-service
+      dockerfile: Dockerfile
+    container_name: dns-push-service
+    ports:
+      - "3003:3003"
+    env_file:
+      - ./services/push-service/.env
+    environment:
+      - CONSUL_HOST=consul
+      - CONSUL_PORT=8500
+      - SERVICE_NAME=push-service
+      - SERVICE_PORT=3003
+    depends_on:
+      rabbitmq:
         condition: service_healthy
       consul:
         condition: service_healthy
