@@ -1,0 +1,25 @@
+# Development Dockerfile for email-service
+FROM node:20-alpine
+
+# Install pnpm
+RUN npm install -g pnpm@10.20.0
+
+WORKDIR /app
+
+# Copy root workspace files
+COPY ../../pnpm-workspace.yaml ../../pnpm-lock.yaml ../../package.json ./
+
+# Copy service package.json
+COPY package.json ./
+
+# Install only this service's dependencies (dev + prod)
+RUN pnpm install --filter ./
+
+# Copy source code
+COPY . .
+
+# Expose port for development
+EXPOSE 3001
+
+# Start the app in watch mode
+CMD ["pnpm", "dev"]

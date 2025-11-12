@@ -1,4 +1,4 @@
-import AppError from "../lib/helpers/AppError.js"
+import AppError from "../lib/utils/AppError.js"
 import { create_template_schema, update_template_schema } from "../schema.js"
 
 const template_routes = async (fastify: any) => {

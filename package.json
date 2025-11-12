@@ -9,20 +9,10 @@
     "format": "prettier --write \"**/*.{ts,js,json,md,yml,yaml}\"",
     "check-format": "prettier --check \"**/*.{ts,js,json,md,yml,yaml}\"",
     "lint": "pnpm -r --parallel run lint",
-    "check-types": "pnpm -r --parallel run type-check",
-    "dev:gateway": "pnpm --filter gateway-service dev",
-    "dev:template": "pnpm --filter template-service dev",
-    "dev:email": "pnpm --filter email-service dev",
-    "build:all": "pnpm -r --parallel run build",
-    "test:all": "pnpm -r --parallel run test",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down",
-    "docker:build": "docker-compose build",
-    "docker:logs": "docker-compose logs -f"
+    "check-types": "pnpm -r --parallel run type-check"
   },
   "workspaces": [
-    "services/*",
-    "gateway-fastify"
+    "services/*"
   ],
   "keywords": [
     "monorepo",

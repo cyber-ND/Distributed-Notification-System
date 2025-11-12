@@ -69,8 +69,8 @@ services:
   # Gateway Service
   gateway-service:
     build:
-      context: ./services/gateway-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/gateway-service/Dockerfile
     container_name: dns-gateway
     ports:
       - "3000:3000"
@@ -88,8 +88,8 @@ services:
   # Email Service
   email-service:
     build:
-      context: ./services/email-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/email-service/Dockerfile
     container_name: dns-email-service
     ports:
       - "3001:3001"
@@ -107,8 +107,8 @@ services:
   # Template Service
   template-service:
     build:
-      context: ./services/template-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/template-service/Dockerfile
     container_name: dns-template-service
     ports:
       - "3002:3002"
@@ -126,19 +126,24 @@ services:
   # Push Service
   push-service:
     build:
-      context: ./services/push-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/push-service/Dockerfile
     container_name: dns-push-service
     ports:
       - "3003:3003"
     env_file:
-      - ./services/push-service/.env
-    environment:
-      - CONSUL_HOST=consul
-      - CONSUL_PORT=8500
-      - SERVICE_NAME=push-service
-      - SERVICE_PORT=3003
+      - ./services/push-service/.env.production
     depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      consul:
+        condition: service_healthy
+    networks:
+      - dns-network
+    restart: unless-stopped
+ 
   # User Service (Laravel + Octane)
   user-service:
     build:
@@ -154,8 +159,6 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-      redis:
-        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       consul:
@@ -163,11 +166,6 @@ services:
     networks:
       - dns-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
 networks:
   dns-network:

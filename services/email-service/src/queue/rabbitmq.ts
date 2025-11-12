@@ -1,7 +1,10 @@
 import amqplib from "amqplib"
+import mustache from "mustache"
 import type { SendMailOptions } from "nodemailer"
+
 import app from "../app.js"
-import circuit_breaker from "../utils/circuit_breaker.js"
+import fetch_template from "../lib/helpers/fetch_template.js"
+import circuit_breaker from "../lib/utils/circuit_breaker.js"
 
 let connection: amqplib.ChannelModel | null = null
 let channel: amqplib.Channel | null = null
@@ -67,23 +70,24 @@ export const consume_queue = async (
         const data = JSON.parse(msg.content.toString()) as {
           template_code: string
           email: string
+          variables: Record<string, string>
           priority: number
         }
 
-        // fetch template here
+        // fetch template
         const template = await circuit_breaker(
           async () => await fetch_template(data.template_code),
           "Template",
         ).fire()
 
-        // todo: fill template and extract body for html and subject
-        console.log(data, template)
+        console.log(data)
+        const html = mustache.render(template.body, data.variables)
 
         await callback({
           to: data.email,
-          // subject
+          subject: template.subject,
           from: "<hng.notification@gmail.com>",
-          html: "<p>something</p>",
+          html,
         })
 
         // todo: call gateway status update endpoint to mark notification as sent
@@ -97,24 +101,4 @@ export const consume_queue = async (
       }
     }
   })
-}
-
-const fetch_template = async (template_code: string) => {
-  const res = await fetch(
-    `http://${app.config.CONSUL_HOST}:8500/v1/catalog/service/template-service`,
-  )
-
-  const services = await res.json()
-
-  const template_service = services[0]
-
-  const templateUrl = `http://${
-    template_service.ServiceAddress || template_service.Address
-  }:${template_service.ServicePort}/api/v1/templates/${template_code}`
-
-  const templateRes = await fetch(templateUrl)
-
-  const data = await templateRes.json()
-
-  console.log("template :", data)
 }

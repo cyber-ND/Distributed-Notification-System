@@ -65,7 +65,7 @@ const start = async () => {
   try {
     await app.ready()
 
-    await app.listen({ port: app.config.PORT })
+    await app.listen({ port: app.config.PORT, host: "0.0.0.0" })
     console.log(`Template service listening on port ${app.config.PORT}`)
 
     await registerService()

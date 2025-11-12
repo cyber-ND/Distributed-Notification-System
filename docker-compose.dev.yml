@@ -7,8 +7,16 @@ services:
       - ./services/gateway-service/src:/app/src
       - ./services/gateway-service/test:/app/test
     command: pnpm run start:dev
-    env_file:
-      - ./services/gateway-service/.env
+
+  push-service:
+    build:
+      context: ./services/push-service
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3003:3003"
+    volumes:
+      - ./services/push-service:/app
+    command: pnpm dev
 
   email-service:
     build:
@@ -17,22 +25,20 @@ services:
     volumes:
       - ./services/email-service/src:/app/src
     command: pnpm run dev
-    env_file:
-      - ./services/email-service/.env
 
   template-service:
     build:
-      context: ./services/template-service
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: services/template-service/Dockerfile.dev
     volumes:
       - ./services/template-service/src:/app/src
     command: pnpm run dev
-    env_file:
-      - ./services/template-service/.env
 
   user-service:
-    env_file:
-      - ./services/user-service/.env
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile.dev
+
     volumes:
       - ./services/user-service:/var/www/html
       - ./services/user-service/storage:/var/www/html/storage

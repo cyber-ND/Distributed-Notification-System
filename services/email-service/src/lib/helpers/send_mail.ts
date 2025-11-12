@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer"
 
 import type { SendMailOptions, Transporter } from "nodemailer"
-import app from "../app.js"
+import app from "../../app.js"
 
 let transporter: Transporter
 

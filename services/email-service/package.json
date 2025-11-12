@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@types/amqplib": "^0.10.8",
+    "@types/mustache": "^4.2.6",
     "@types/nodemailer": "^7.0.3",
     "@types/opossum": "^8.1.9",
     "tsconfig-paths": "^4.2.0",

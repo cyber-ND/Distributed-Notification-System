@@ -4,7 +4,7 @@ import swagger from "@fastify/swagger"
 import swaggerUi from "@fastify/swagger-ui"
 import Fastify from "fastify"
 
-import error_handler from "./lib/helpers/error_handler.js"
+import error_handler from "./lib/utils/error_handler.js"
 import template_routes from "./routes/template_route.js"
 import { env_schema } from "./schema.js"
 

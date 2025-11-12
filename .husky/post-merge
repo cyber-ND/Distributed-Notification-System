@@ -1,0 +1,15 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Install Node.js dependencies for all workspaces
+if [ -f "pnpm-workspace.yaml" ] || [ -f "package.json" ]; then
+  echo "Installing Node.js dependencies for all workspaces..."
+  pnpm install
+fi
+
+PHP_SERVICE="services/user-service"
+
+if [ -f "$PHP_SERVICE/composer.json" ]; then
+  echo "Installing PHP dependencies in $PHP_SERVICE..."
+  cd "$PHP_SERVICE" && composer install && cd -
+fi

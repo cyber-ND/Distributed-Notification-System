@@ -1,6 +1,6 @@
 import app from "./app.js"
+import send_mail from "./lib/helpers/send_mail.js"
 import { consume_queue } from "./queue/rabbitmq.js"
-import send_mail from "./utils/send_mail.js"
 
 // register consul for dynamic service discovery
 async function registerService() {
@@ -35,7 +35,6 @@ async function registerService() {
   )
 }
 
-// Deregister service from Consul on shutdown
 async function deregisterService() {
   const serviceId = `${app.config.SERVICE_NAME}-${app.config.PORT}`
 
@@ -65,7 +64,7 @@ process.on("SIGTERM", () => gracefulShutdown("SIGTERM"))
 
 const start = async () => {
   try {
-    await app.listen({ port: app.config.PORT })
+    await app.listen({ port: app.config.PORT, host: "0.0.0.0" })
     await consume_queue("email", send_mail)
     console.log(`Email service listening on port ${app.config.PORT}`)
 
