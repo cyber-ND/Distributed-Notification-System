@@ -10,14 +10,14 @@ import { HealthResponseSchema } from "./schema/push.schema.js"
 
 const app = Fastify({ logger: true })
 
-await app.register(env, {
+await app.register(env as any, {
   confKey: "config",
   schema,
   dotenv: true,
 })
 
 // Register Swagger
-await app.register(swagger, {
+await app.register(swagger as any, {
   swagger: {
     info: {
       title: "Push Service API",
@@ -28,7 +28,7 @@ await app.register(swagger, {
         email: "support@example.com",
       },
     },
-    host: "localhost:3003",
+    host: "localhost:3000",
     schemes: ["http", "https"],
     consumes: ["application/json"],
     produces: ["application/json"],
@@ -43,7 +43,7 @@ await app.register(swagger, {
 })
 
 // Register Swagger UI
-await app.register(swaggerUi, {
+await app.register(swaggerUi as any, {
   routePrefix: "/docs",
   uiConfig: {
     docExpansion: "list",
