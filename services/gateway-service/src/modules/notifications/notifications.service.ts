@@ -1,6 +1,7 @@
 import { HttpService } from "@nestjs/axios"
 import { BadRequestException, Inject, Injectable, Logger } from "@nestjs/common"
 import Redis from "ioredis"
+import { lastValueFrom } from "rxjs"
 import { UpdateNotificationStatusDto } from "./dto/notification-status.dto"
 import { CreateNotificationDto, NotificationType } from "./dto/notification.dto"
 import { UsersService } from "../users/users.service"
@@ -216,6 +217,33 @@ export class NotificationsService {
       message: "ok",
       data: { request_id, status: parsed },
       meta: null,
+    }
+  }
+
+  // ==========================
+  // Generic gateway proxy
+  // ==========================
+  async forwardToService(
+    serviceName: string,
+    method: string,
+    path: string,
+    data?: any,
+  ): Promise<any> {
+    try {
+      const baseUrl =
+        await this.usersService["consulService"].getServiceAddress(serviceName)
+      if (!baseUrl) throw new Error(`${serviceName} not found in Consul`)
+
+      const url = `${baseUrl}${path}`
+      const res = await lastValueFrom(this.http.request({ method, url, data }))
+      return res.data
+    } catch (err: any) {
+      this.logger.error(`❌ Proxy to ${serviceName} failed:`, err.message)
+      return {
+        success: false,
+        message: `${serviceName} unavailable`,
+        error: err.message,
+      }
     }
   }
 }

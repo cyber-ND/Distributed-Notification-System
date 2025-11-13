@@ -13,11 +13,10 @@ export class UsersService {
     private http: HttpService,
     private readonly consulService: ConsulService,
   ) {
-    // Circuit breaker options
     const options = {
-      timeout: 3000, // 3s request timeout
-      errorThresholdPercentage: 50, // Trip after 50% failures
-      resetTimeout: 10000, // Retry after 10s
+      timeout: 3000,
+      errorThresholdPercentage: 50,
+      resetTimeout: 10000,
     }
 
     this.breaker = new CircuitBreaker(this.callUserService.bind(this), options)
@@ -33,7 +32,7 @@ export class UsersService {
     )
   }
 
-  // Public method called by controllers or other services
+  // Gateway or controller calls this
   async forwardToUserService(method: string, path: string, data?: any) {
     try {
       return await this.breaker.fire(method, path, data)
@@ -47,22 +46,32 @@ export class UsersService {
     }
   }
 
-  // Circuit breaker calls this method
+  // Circuit breaker calls this
   private async callUserService(method: string, path: string, data?: any) {
-    // Dynamically get base URL from Consul
     const baseUrl = await this.consulService.getServiceAddress("user-service")
     if (!baseUrl) throw new Error("User service not found in Consul")
 
     const url = `${baseUrl}${path}`
     const res = await lastValueFrom(
-      this.http.request({
-        method,
-        url,
-        data,
-        timeout: 3000, // Request timeout
-      }),
+      this.http.request({ method, url, data, timeout: 3000 }),
     )
+    return res.data
+  }
 
+  // Optional: generic method for dynamic proxying
+  async requestToService(
+    serviceName: string,
+    method: string,
+    path: string,
+    data?: any,
+  ) {
+    const baseUrl = await this.consulService.getServiceAddress(serviceName)
+    if (!baseUrl) throw new Error(`${serviceName} not found in Consul`)
+
+    const url = `${baseUrl}${path}`
+    const res = await lastValueFrom(
+      this.http.request({ method, url, data, timeout: 3000 }),
+    )
     return res.data
   }
 }

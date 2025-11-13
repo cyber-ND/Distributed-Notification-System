@@ -66,26 +66,41 @@ export class ConsulService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  // Get service address dynamically
+  /** Get the base URL for a single service */
   async getServiceAddress(serviceName: string): Promise<string | null> {
     try {
       const res = await fetch(
         `http://${this.CONSUL_HOST}:${this.CONSUL_PORT}/v1/catalog/service/${serviceName}`,
       )
-
-      // Tell TypeScript the response is an array of any objects
       const data = (await res.json()) as any[]
-
       if (!data || data.length === 0) {
         this.logger.warn(`Service [${serviceName}] not found in Consul`)
         return null
       }
-
       const service = data[0]
       return `http://${service.ServiceAddress}:${service.ServicePort}`
     } catch (err) {
       this.logger.error("Consul query failed:", err)
       return null
+    }
+  }
+
+  /** Fetch all registered services dynamically for gateway proxy */
+  async getAllServices(): Promise<Record<string, string>> {
+    try {
+      const res = await fetch(
+        `http://${this.CONSUL_HOST}:${this.CONSUL_PORT}/v1/catalog/services`,
+      )
+      const services = (await res.json()) as Record<string, string[]>
+      const result: Record<string, string> = {}
+      for (const name of Object.keys(services)) {
+        const address = await this.getServiceAddress(name)
+        if (address) result[name] = address
+      }
+      return result
+    } catch (err) {
+      this.logger.error("Failed to fetch all services from Consul:", err)
+      return {}
     }
   }
 }

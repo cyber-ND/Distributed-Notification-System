@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
 } from "@nestjs/common"
 import { UpdateNotificationStatusDto } from "./dto/notification-status.dto"
 import { CreateNotificationDto } from "./dto/notification.dto"
@@ -56,5 +57,36 @@ export class NotificationsController {
       data: { status: "ok" },
       meta: null,
     }
+  }
+
+  // ------------------------------
+  // Generic Proxy endpoint
+  // ------------------------------
+  @Post("/proxy/:service/*")
+  async proxyRequest(
+    @Param("service") service: string,
+    @Body() body: any,
+    @Query() query: any,
+  ): Promise<any> {
+    const path = "/" + (service ? service + "/" : "") + (query.path || "")
+    return await this.notificationsService.forwardToService(
+      service,
+      "POST",
+      path,
+      body,
+    )
+  }
+
+  @Get("/proxy/:service/*")
+  async proxyGetRequest(
+    @Param("service") service: string,
+    @Query() query: any,
+  ): Promise<any> {
+    const path = "/" + (service ? service + "/" : "") + (query.path || "")
+    return await this.notificationsService.forwardToService(
+      service,
+      "GET",
+      path,
+    )
   }
 }

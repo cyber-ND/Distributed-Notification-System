@@ -1,9 +1,9 @@
-// consul.module.ts
-import { Module } from "@nestjs/common"
+import { Module, Global } from "@nestjs/common"
 import { ConsulService } from "./consul.service"
 
+@Global()
 @Module({
   providers: [ConsulService],
-  exports: [ConsulService], // <--- important
+  exports: [ConsulService],
 })
 export class ConsulModule {}
