@@ -12,7 +12,7 @@ export const envSchema = {
     "RABBITMQ_CONNECTION_URL",
   ],
   properties: {
-    PORT: { type: "number", default: 3003 },
+    PORT: { type: "number", default: 3000 },
     FCM_PRIVATE_KEY: { type: "string" },
     FCM_CLIENT_EMAIL: { type: "string" },
     FCM_PROJECT_ID: { type: "string" },
