@@ -4,8 +4,6 @@ namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Spatie\Permission\Traits\HasRoles; // Spatie roles & permissions
 use Illuminate\Support\Facades\Hash; // For secure password hashing
 use Laravel\Sanctum\HasApiTokens; // For API token management
@@ -17,7 +15,7 @@ use Laravel\Sanctum\HasApiTokens; // For API token management
  * It includes:
  * - Basic auth (username/email + password)
  * - Spatie roles/permissions (e.g., admin, user)
- * - Relationships to contacts and preferences
+ * - Embedded preferences and push tokens (no separate table)
  * - Automatic password hashing
  * - No email verification or remember_token (not needed in API-only service)
  */
@@ -33,11 +31,13 @@ class User extends Authenticatable
      * @var array<string>
      */
     protected $fillable = [
-        'username',
+        'name',
         'email',
         'password',
+        'preferences',
         'push_tokens',
     ];
+
     /**
      * The attributes that should be cast to native types.
      *
@@ -45,6 +45,7 @@ class User extends Authenticatable
      */
     protected $casts = [
         'push_tokens' => 'array',
+        'preferences' => 'array',
     ];
 
     /**
@@ -68,24 +69,26 @@ class User extends Authenticatable
     }
 
     /**
-     * Relationship: A user has many contact entries.
-     * Used to store multiple emails, push tokens, etc.
-     *
-     * @return HasMany
+     * Accessor: Get preferences as structured booleans for notifications.
+     * Ensures preferences like "email_notifications_enabled" return true/false.
      */
-    public function contacts(): HasMany
+    public function getPreferencesAttribute($value)
     {
-        return $this->hasMany(UserContact::class);
+        $preferences = json_decode($value, true) ?? [];
+
+        return [
+            'email_notifications_enabled' => (bool)($preferences['email_notifications_enabled'] ?? false),
+            'push_notifications_enabled'  => (bool)($preferences['push_notifications_enabled'] ?? false),
+            'preferred_language'          => $preferences['preferred_language'] ?? 'en',
+            'do_not_disturb_times'        => $preferences['do_not_disturb_times'] ?? [],
+        ];
     }
 
     /**
-     * Relationship: A user has one preference record.
-     * Stores notification settings like language, enabled channels.
-     *
-     * @return HasOne
+     * Mutator: Ensure preferences are always stored as JSON.
      */
-    public function preferences(): HasOne
+    public function setPreferencesAttribute($value)
     {
-        return $this->hasOne(UserPreference::class);
+        $this->attributes['preferences'] = json_encode($value);
     }
 }
