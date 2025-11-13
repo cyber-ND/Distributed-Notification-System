@@ -51,7 +51,7 @@ async function send_push_notification(
       data: payload.data || {},
       android: {
         priority: payload.priority || "normal",
-        ttl: payload.ttl ? `${payload.ttl}s` : undefined, // Convert to seconds duration format
+        ttl: Math.max(0, (payload.ttl ?? 3600) * 1000), //convert seconds to miliseconds duration format
         notification: {
           imageUrl: payload.image,
           clickAction: payload.link,
@@ -78,6 +78,10 @@ async function send_push_notification(
           ...(payload.image && { image: payload.image }),
         },
       },
+    }
+    //check if FCM token was sent
+    if (!payload.token || payload.token.length < 100) {
+      throw new Error("Invalid or missing FCM registration token")
     }
 
     const result = await messaging.send(message)

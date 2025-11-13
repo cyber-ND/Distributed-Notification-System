@@ -3,19 +3,15 @@
 namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
-use Throwable;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Throwable;
+use Illuminate\Http\Request; // ADD THIS
 
 class Handler extends ExceptionHandler
 {
-    /**
-     * A list of exception types that are not reported.
-     *
-     * @var array<int, class-string<Throwable>>
-     */
     protected $dontReport = [
         //
     ];
@@ -23,13 +19,18 @@ class Handler extends ExceptionHandler
     /**
      * Render an exception into an HTTP response.
      */
-    public function render($request, Throwable $exception)
+    public function render($request, Throwable $exception) // $request is a parameter!
     {
-        // Force JSON for API routes
+        // ADD THIS: Type hint and ensure $request is available
+        if (!$request instanceof Request) {
+            return parent::render($request, $exception);
+        }
+
+        // Force consistent JSON structure for all API routes
         if ($request->is('api/*') || $request->expectsJson()) {
             $status = 500;
             $message = 'Server Error';
-            $details = [];
+            $data = null;
 
             if ($exception instanceof HttpExceptionInterface) {
                 $status = $exception->getStatusCode();
@@ -37,7 +38,7 @@ class Handler extends ExceptionHandler
             } elseif ($exception instanceof ValidationException) {
                 $status = 422;
                 $message = 'Validation failed';
-                $details = $exception->errors();
+                $data = $exception->errors();
             } elseif ($exception instanceof AuthenticationException) {
                 $status = 401;
                 $message = 'Unauthenticated';
@@ -49,18 +50,12 @@ class Handler extends ExceptionHandler
             }
 
             return response()->json([
-                'success' => false,
-                'data' => null,
                 'message' => $message,
-                'error' => [
-                    'type' => get_class($exception),
-                    'code' => $status,
-                    'details' => $details,
-                ],
+                'data' => $data,
+                'success' => false,
             ], $status);
         }
 
-        // Default behavior for non-API requests
         return parent::render($request, $exception);
     }
 
@@ -71,8 +66,9 @@ class Handler extends ExceptionHandler
     {
         if ($request->is('api/*') || $request->expectsJson()) {
             return response()->json([
-                'success' => false,
                 'message' => 'Unauthenticated',
+                'data' => null,
+                'success' => false,
             ], 401);
         }
 

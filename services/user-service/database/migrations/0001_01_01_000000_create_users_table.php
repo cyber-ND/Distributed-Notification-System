@@ -13,10 +13,11 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('username');
+            $table->string('name'); // Changed from 'username' to 'name' for consistency with controller
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            $table->json('preferences')->nullable(); // Stores user notification & app preferences as JSON
             $table->json('push_tokens')->nullable(); // Array of push notification tokens
             $table->rememberToken();
             $table->timestamps();
